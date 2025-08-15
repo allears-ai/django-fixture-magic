@@ -63,6 +63,7 @@ def serialize_fully(exclude_fields):
         ("user", "last_name"),
         ("user", "email"),
         ("user", "username"),
+        ("userprofile", "phone_number"),
         ("organization", "name"),
     ]
 
@@ -87,6 +88,8 @@ def serialize_fully(exclude_fields):
                     serialize_me[index].__setattr__(field, f.last_name())
                 elif field in ["email", "username"]:
                     serialize_me[index].__setattr__(field, email)
+                elif field == "phone_number":
+                    serialize_me[index].__setattr__(field, f.phone_number())
                 elif field == "name":
                     serialize_me[index].__setattr__(field, f.company())
         index += 1
