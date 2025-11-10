@@ -7,6 +7,7 @@ def get_all_related_objects(model, exclude_fields, include_fields):
             and f.auto_created
             and not f.concrete
             and f.name in include_fields
+            and f.name not in exclude_fields
         ]
     return [
         f
