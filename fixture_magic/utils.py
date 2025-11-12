@@ -95,12 +95,13 @@ def serialize_fully(exclude_fields, include_related_fields):
             add_to_serialize_list(
                 serialize_me[index].__getattribute__(field.name).all()
             )
-        for field in get_all_related_objects(
-            serialize_me[index], exclude_fields, include_related_fields
-        ):
-            add_to_serialize_list(
-                serialize_me[index].__getattribute__(field.name).all()
-            )
+        if include_related_fields:
+            for field in get_all_related_objects(
+                serialize_me[index], exclude_fields, include_related_fields
+            ):
+                add_to_serialize_list(
+                    serialize_me[index].__getattribute__(field.name).all()
+                )
         for model, field in fields_to_anonymize:
             obj = serialize_me[index]
             if obj._meta.model_name == model and field in obj.__dict__:
