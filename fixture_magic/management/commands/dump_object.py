@@ -1,6 +1,7 @@
-from django.core.exceptions import FieldError, ObjectDoesNotExist
+from django.core.exceptions import FieldDoesNotExist, FieldError, ObjectDoesNotExist
 from django.core.management.base import BaseCommand, CommandError
 from django.core.serializers import serialize
+from django.db import models
 
 from fixture_magic.compat import get_all_related_objects
 
@@ -142,6 +143,28 @@ class Command(BaseCommand):
         dump_me = loading.get_model(app_label, model_name)
         if query:
             objs = dump_me.objects.filter(**json.loads(query))
+            if options.get("include_related_fields"):
+                # Separate forward FK/OneToOne from M2M/reverse relationships
+                select_fields = []
+                prefetch_fields = []
+
+                for field_name in options["include_related_fields"]:
+                    try:
+                        field = dump_me._meta.get_field(field_name)
+                        # Forward ForeignKey or OneToOne use select_related
+                        if isinstance(field, (models.ForeignKey, models.OneToOneField)):
+                            select_fields.append(field_name)
+                        # ManyToMany and reverse relationships use prefetch_related
+                        else:
+                            prefetch_fields.append(field_name)
+                    except (FieldDoesNotExist, AttributeError):
+                        # If field doesn't exist or can't be determined, default to prefetch
+                        prefetch_fields.append(field_name)
+
+                if select_fields:
+                    objs = objs.select_related(*select_fields)
+                if prefetch_fields:
+                    objs = objs.prefetch_related(*prefetch_fields)
         else:
             if ids[0] == "*":
                 objs = dump_me.objects.all()
