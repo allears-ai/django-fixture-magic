@@ -40,15 +40,8 @@ def reorder_json(data, models, ordering_cond=None):
     return output
 
 
-def get_fields(obj, exclude_fields, include_fields):
-    if include_fields:
-        return [
-            f
-            for f in obj._meta.fields
-            if f.name in include_fields and f.name not in exclude_fields
-        ]
-    else:
-        return [f for f in obj._meta.fields if f.name not in exclude_fields]
+def get_fields(obj, exclude_fields):
+    return [f for f in obj._meta.fields if f.name not in exclude_fields]
 
 
 def get_m2m(obj, exclude_fields, include_fields):
@@ -80,7 +73,7 @@ def serialize_fully(exclude_fields, include_fields):
     while index < len(serialize_me):
         # generating this outside of the field loop to make sure email==username
         email = f.email()
-        for field in get_fields(serialize_me[index], exclude_fields, include_fields):
+        for field in get_fields(serialize_me[index], exclude_fields):
             if isinstance(field, models.ForeignKey):
                 add_to_serialize_list(
                     [serialize_me[index].__getattribute__(field.name)]

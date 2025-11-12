@@ -160,7 +160,7 @@ class Command(BaseCommand):
                 else:
                     objs = []
 
-        if options.get("kitchensink"):
+        if options.get("kitchensink") or options.get("include_fields"):
             fields = get_all_related_objects(
                 dump_me, options["exclude_fields"], options["include_fields"]
             )
@@ -182,12 +182,6 @@ class Command(BaseCommand):
         add_to_serialize_list(objs)
 
         if options.get("follow_fk", True):
-            print(
-                "exclude_fields",
-                options["exclude_fields"],
-                "\ninclude_fields",
-                options["include_fields"],
-            )
             serialize_fully(options["exclude_fields"], options["include_fields"])
         else:
             # reverse list to match output of serializez_fully
