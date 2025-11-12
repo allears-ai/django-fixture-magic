@@ -160,10 +160,8 @@ class Command(BaseCommand):
                 else:
                     objs = []
 
-        if options.get("kitchensink") or options.get("include_related_fields"):
-            fields = get_all_related_objects(
-                dump_me, options["exclude_fields"], options["include_related_fields"]
-            )
+        if options.get("kitchensink"):
+            fields = get_all_related_objects(dump_me, options["exclude_fields"])
 
             related_fields = [rel.get_accessor_name() for rel in fields]
 
@@ -196,15 +194,37 @@ class Command(BaseCommand):
             "natural_primary", False
         )
 
-        self.stdout.write(
-            serialize(
-                options.get("format", "json"),
-                [o for o in serialize_me if o is not None],
-                indent=4,
-                use_natural_foreign_keys=natural_foreign,
-                use_natural_primary_keys=natural_primary,
-            )
+        serialized_data = serialize(
+            options.get("format", "json"),
+            [o for o in serialize_me if o is not None],
+            indent=4,
+            use_natural_foreign_keys=natural_foreign,
+            use_natural_primary_keys=natural_primary,
         )
+
+        if options.get("exclude_fields"):
+            data = json.loads(serialized_data)
+            exclude_fields = options.get("exclude_fields", [])
+            exclude_fields_dict = (
+                exclude_fields if isinstance(exclude_fields, dict) else {}
+            )
+
+            for item in data:
+                model_key = item.get("model")
+                if model_key in exclude_fields_dict:
+                    fields_to_exclude = exclude_fields_dict[model_key]
+                    if "fields" in item:
+                        for field in fields_to_exclude:
+                            item["fields"].pop(field, None)
+                elif isinstance(exclude_fields, list):
+                    # Global exclusion list
+                    if "fields" in item:
+                        for field in exclude_fields:
+                            item["fields"].pop(field, None)
+
+            serialized_data = json.dumps(data, indent=4)
+
+        options.get("stdout").write(serialized_data)
 
         # Clear the list. Useful for when calling multiple
         # dump_object commands with a single execution of django

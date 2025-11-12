@@ -1,6 +1,8 @@
 from django.db import models
 from factory.faker import faker
 
+from fixture_magic.compat import get_all_related_objects
+
 serialize_me = []
 seen = {}
 f = faker.Faker()
@@ -40,17 +42,24 @@ def reorder_json(data, models, ordering_cond=None):
     return output
 
 
-def get_fields(obj, exclude_fields):
+def get_fields(obj, exclude_fields, include_related_fields):
+    skip_relations = True if include_related_fields else False
+    if skip_relations:
+        return [
+            f
+            for f in obj._meta.fields
+            if not (f.name in exclude_fields or f.is_relation)
+        ]
     return [f for f in obj._meta.fields if f.name not in exclude_fields]
 
 
-def get_m2m(obj, exclude_fields, include_fields):
+def get_m2m(obj, exclude_fields, include_related_fields):
     try:
-        if include_fields:
+        if include_related_fields:
             return [
                 f
                 for f in obj._meta.many_to_many
-                if f.name in include_fields and f.name not in exclude_fields
+                if f.name in include_related_fields and f.name not in exclude_fields
             ]
         else:
             return [f for f in obj._meta.many_to_many if f.name not in exclude_fields]
@@ -58,7 +67,7 @@ def get_m2m(obj, exclude_fields, include_fields):
         return []
 
 
-def serialize_fully(exclude_fields, include_fields):
+def serialize_fully(exclude_fields, include_related_fields):
     index = 0
 
     fields_to_anonymize = [
@@ -73,12 +82,22 @@ def serialize_fully(exclude_fields, include_fields):
     while index < len(serialize_me):
         # generating this outside of the field loop to make sure email==username
         email = f.email()
-        for field in get_fields(serialize_me[index], exclude_fields):
+        for field in get_fields(
+            serialize_me[index], exclude_fields, include_related_fields
+        ):
             if isinstance(field, models.ForeignKey):
                 add_to_serialize_list(
                     [serialize_me[index].__getattribute__(field.name)]
                 )
-        for field in get_m2m(serialize_me[index], exclude_fields, include_fields):
+        for field in get_m2m(
+            serialize_me[index], exclude_fields, include_related_fields
+        ):
+            add_to_serialize_list(
+                serialize_me[index].__getattribute__(field.name).all()
+            )
+        for field in get_all_related_objects(
+            serialize_me[index], exclude_fields, include_related_fields
+        ):
             add_to_serialize_list(
                 serialize_me[index].__getattribute__(field.name).all()
             )
