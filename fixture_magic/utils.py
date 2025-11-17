@@ -44,12 +44,14 @@ def reorder_json(data, models, ordering_cond=None):
 
 
 def get_fields(obj, exclude_fields, include_related_fields):
-    skip_relations = True if include_related_fields else False
-    if skip_relations:
+    if include_related_fields:
         return [
             f
             for f in obj._meta.fields
-            if not (f.name in exclude_fields or f.is_relation)
+            if not (
+                f.name in exclude_fields
+                or (f.is_relation and f.name not in include_related_fields)
+            )
         ]
     return [f for f in obj._meta.fields if f.name not in exclude_fields]
 
