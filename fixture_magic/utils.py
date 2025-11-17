@@ -102,7 +102,6 @@ def serialize_fully(exclude_fields, include_related_fields):
                     except FieldError:
                         pass
 
-        # Then follow other ForeignKey fields (when include_related_fields is not set)
         for field in get_fields(
             serialize_me[index], exclude_fields, include_related_fields
         ):
@@ -116,12 +115,25 @@ def serialize_fully(exclude_fields, include_related_fields):
             add_to_serialize_list(
                 serialize_me[index].__getattribute__(field.name).all()
             )
-        for field in get_all_related_objects(
-            serialize_me[index], exclude_fields, include_related_fields
-        ):
-            add_to_serialize_list(
-                serialize_me[index].__getattribute__(field.name).all()
-            )
+        # Process reverse relations only if include_related_fields is set
+        if include_related_fields:
+            for field in get_all_related_objects(
+                serialize_me[index], exclude_fields, include_related_fields
+            ):
+                try:
+                    related_objects = serialize_me[index].__getattribute__(field.name)
+                    if hasattr(related_objects, "all"):
+                        # One-to-many relation
+                        add_to_serialize_list(related_objects.all())
+                    else:
+                        # One-to-one reverse relation (returns a single object)
+                        if related_objects is not None:
+                            add_to_serialize_list([related_objects])
+                except AttributeError:
+                    # Relation doesn't exist (e.g., logentry if admin isn't installed)
+                    pass
+                except ObjectDoesNotExist:
+                    pass
         for model, field in fields_to_anonymize:
             obj = serialize_me[index]
             if obj._meta.model_name == model and field in obj.__dict__:
