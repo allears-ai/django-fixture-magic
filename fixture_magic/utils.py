@@ -1,3 +1,4 @@
+from django.core.exceptions import FieldError, ObjectDoesNotExist
 from django.db import models
 from factory.faker import faker
 
@@ -82,6 +83,24 @@ def serialize_fully(exclude_fields, include_related_fields):
     while index < len(serialize_me):
         # generating this outside of the field loop to make sure email==username
         email = f.email()
+
+        if include_related_fields:
+            obj = serialize_me[index]
+            for field_name in include_related_fields:
+                if hasattr(obj._meta, "get_field"):
+                    try:
+                        field = obj._meta.get_field(field_name)
+                        if isinstance(field, models.ForeignKey):
+                            try:
+                                related_obj = getattr(obj, field_name)
+                                if related_obj is not None:
+                                    add_to_serialize_list([related_obj])
+                            except ObjectDoesNotExist:
+                                pass
+                    except FieldError:
+                        pass
+
+        # Then follow other ForeignKey fields (when include_related_fields is not set)
         for field in get_fields(
             serialize_me[index], exclude_fields, include_related_fields
         ):
@@ -95,13 +114,12 @@ def serialize_fully(exclude_fields, include_related_fields):
             add_to_serialize_list(
                 serialize_me[index].__getattribute__(field.name).all()
             )
-        if include_related_fields:
-            for field in get_all_related_objects(
-                serialize_me[index], exclude_fields, include_related_fields
-            ):
-                add_to_serialize_list(
-                    serialize_me[index].__getattribute__(field.name).all()
-                )
+        for field in get_all_related_objects(
+            serialize_me[index], exclude_fields, include_related_fields
+        ):
+            add_to_serialize_list(
+                serialize_me[index].__getattribute__(field.name).all()
+            )
         for model, field in fields_to_anonymize:
             obj = serialize_me[index]
             if obj._meta.model_name == model and field in obj.__dict__:
