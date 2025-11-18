@@ -1,4 +1,4 @@
-from django.core.exceptions import FieldError, ObjectDoesNotExist
+from django.core.exceptions import FieldDoesNotExist, ObjectDoesNotExist
 from django.db import models
 from factory.faker import faker
 
@@ -99,7 +99,7 @@ def serialize_fully(exclude_fields, include_related_fields):
                                     add_to_serialize_list([related_obj])
                             except ObjectDoesNotExist:
                                 pass
-                    except FieldError:
+                    except FieldDoesNotExist:
                         pass
 
         for field in get_fields(
